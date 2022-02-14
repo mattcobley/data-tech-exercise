@@ -49,6 +49,8 @@ Your task is to predict the next date of the series taking into account the foll
 
 - How would you test the accuracy of date prediction?
 
+  The simplest initial approach is to visually inspect the data for a specific series and see if the answer appears to be around the correct date - for example if all the entries appear at the end of each month, we would expect the answer to fall within this general pattern. I used this approach here when just verifying that my results seemed sane.
+
   If it was a problem where the model could be applied across series, you could hold some series back as test data, remove the last (date-wise) entry from the series and then see how accurately the model predicts the result for each series. You could do something similar within each series by removing the most recent date before generating the prediction and seeing how close the prediction is to the real "most-recent" date.
 
   Another option would be to plot out the data for each series minus the last value and see if the next date seems to fit within what appears to be a suitable timeframe, based on how the graph ebs and flows.

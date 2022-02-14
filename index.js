@@ -41,11 +41,7 @@ const getNextDateForSingleSeries = (dataForSingleSeries) => {
 }
 
 const getTimestamps = dateEntry => {
-  const dateString = dateEntry.date
-  const [year, month, day] = dateString.split('-')
-  const monthIndex = month - 1
-  const date = new Date(year, monthIndex, day)
-  return date.getTime()
+  return Date.parse(dateEntry.date)
 }
 
 const getAverageTimeBetweenEntries = (maxTime, minTime, count) => {
@@ -74,15 +70,8 @@ const movePredictionToWeekday = (timestamp) => {
 
 // Assumed that you wanted the results in the same format we started with
 const getDateStringFromDate = entryDate => {
-  const year = entryDate.getFullYear()
-  const monthIndex = entryDate.getMonth() + 1 //Because, JavaScript
-  const monthPrefix = getDayMonthStringPrefix(monthIndex)
-  const day = entryDate.getDay()
-  const dayPrefix = getDayMonthStringPrefix(day)
-  return `${year}-${monthPrefix}${monthIndex}-${dayPrefix}${day}`
+  return entryDate.toISOString().split('T')[0]
 }
-
-const getDayMonthStringPrefix = value => value < 10 ? '0' : ''
 
 const main = () => {
   // Note that the below code is violating the principle of immutability but is used pragmatically

@@ -4,48 +4,25 @@ const fs = require("fs")
 const min = require("ramda/src/min")
 const max = require("ramda/src/max")
 
-const makePredictions = seriesData => {
-  const seriesDataGroupedById = R.groupWith(groupBySeriesId, seriesData)
-  const results = seriesDataGroupedById.map(getNextDateForSingleSeries)
-  const writeStream = fs.createWriteStream("results.json")
-  writeStream.write(JSON.stringify(results))
-  return results
-}
-
-const groupBySeriesId = (input1, input2) => {
-  return input1.seriesid === input2.seriesid
-}
-
-const getNextDateForSingleSeries = (dataForSingleSeries) => {
-  const timestamps = R.map(getTimestamps, dataForSingleSeries)
-
-  // Using reduce is prefered over just using Math.max or Math.min on the array for large arrays: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/max
-  const maxTime = R.reduce(max, 0, timestamps)
-
-  // Could alternatively get the min time alongside the max time by getting the smallest value on each iteration of the max reducer and pushing that to a variable so that you only need to iterate through once, but have kept it simple for readability.
-  const minTime = R.reduce(min, timestamps[0], timestamps)
-
-  const numberOfEntriesInSeries = dataForSingleSeries.length
-  const numberOfGapsBetweenEntries = numberOfEntriesInSeries - 1
-
-  const averageTimeBetweenEntries = getAverageTimeBetweenEntries(maxTime, minTime, numberOfGapsBetweenEntries)
-
-  const nextDateEntryTimestamp = maxTime + averageTimeBetweenEntries
-  const nextDateNotWeekend = movePredictionToWeekday(nextDateEntryTimestamp)
-  const nextDateString = getDateStringFromDate(nextDateNotWeekend)
-
-  return {
-    seriesid: dataForSingleSeries[0].seriesid,
-    date: nextDateString
-  }
-}
-
-const getTimestamps = dateEntry => {
+const getTimestampFromSeriesEntry = dateEntry => {
   return Date.parse(dateEntry.date)
 }
 
-const getAverageTimeBetweenEntries = (maxTime, minTime, count) => {
-  return (maxTime - minTime) / count
+const getTimestampsForSeries = R.map(getTimestampFromSeriesEntry)
+
+// Using reduce is prefered over just using Math.max or Math.min on the array for large arrays: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/max
+const getMaxTimeFromTimestamps = R.reduce(max, 0)
+
+// Could alternatively get the min time alongside the max time by getting the smallest value on each iteration of the max reducer and pushing that to a variable so that you only need to iterate through once, but have kept it simple for readability.
+const getMinTimeFromTimestamps = (timestamps) => R.reduce(min, timestamps[0], timestamps)
+
+const getMaxAndMinTimeFromTimestamps = (timestamps) => {
+  const maxTime = getMaxTimeFromTimestamps(timestamps)
+  const minTime = getMinTimeFromTimestamps(timestamps)
+  return {
+    maxTime,
+    minTime
+  }
 }
 
 const movePredictionToWeekday = (timestamp) => {
@@ -71,6 +48,45 @@ const movePredictionToWeekday = (timestamp) => {
 // Assumed that you wanted the results in the same format we started with
 const getDateStringFromDate = entryDate => {
   return entryDate.toISOString().split('T')[0]
+}
+
+const getNextDateForSingleSeries = (dataForSingleSeries) => {
+  const timestamps = getTimestampsForSeries(dataForSingleSeries)
+
+  const { maxTime, minTime } = getMaxAndMinTimeFromTimestamps(timestamps)
+
+  const numberOfEntriesInSeries = dataForSingleSeries.length
+  const numberOfGapsBetweenEntries = numberOfEntriesInSeries - 1
+
+  const averageTimeBetweenEntries = (maxTime - minTime) / numberOfGapsBetweenEntries
+  const nextDateEntryTimestamp = maxTime + averageTimeBetweenEntries
+
+  const nextDateNotWeekend = movePredictionToWeekday(nextDateEntryTimestamp)
+  const nextDateString = getDateStringFromDate(nextDateNotWeekend)
+
+  return {
+    seriesid: dataForSingleSeries[0].seriesid,
+    date: nextDateString
+  }
+}
+
+const getNextDateForAllSeries = R.map(getNextDateForSingleSeries)
+
+const seriesIdMatch = (input1, input2) => {
+  return input1.seriesid === input2.seriesid
+}
+
+const groupBySeriesId = R.groupWith(seriesIdMatch)
+
+const makePredictions = seriesData => {
+  const getPredictions = R.compose(
+    getNextDateForAllSeries,
+    groupBySeriesId
+  )
+  const results = getPredictions(seriesData)
+  const writeStream = fs.createWriteStream("results.json")
+  writeStream.write(JSON.stringify(results))
+  return results
 }
 
 const main = () => {
